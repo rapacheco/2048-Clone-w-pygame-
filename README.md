@@ -6,3 +6,8 @@ V 0.0:
 - Just the raw game logic and raw graphics are in place
 - Still no winning and losing conditions are checked
 - Animation for the slidind tiles is still not implemented
+
+V 0.1:
+- Implemented winning and losing conditions. When met, prompts user for a new game.
+- Fixed a few bugs in the graphics
+- Animation for the slidind tiles is still not implemented
