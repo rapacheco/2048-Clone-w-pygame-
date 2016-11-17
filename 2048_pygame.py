@@ -2,7 +2,7 @@
 Author: Rafael Pacheco Ribeiro
 Clone of 2048 game.
 Part of this code was written by me as an assignment in the Coursera class Principles of Computing (Part 1)
-This implementation takes the code written in that class to run with pygame
+This implementation takes the code written in that class, which runs with simplegui, to run with pygame
 """
 
 import pygame
@@ -24,17 +24,14 @@ TILE_SIZE = 100
 HALF_TILE_SIZE = TILE_SIZE / 50
 BORDER = 15
 WHITE = (255,255,255)
-# COLOR1 = (255, 244, 170)
-# COLOR2 = (212, 199, 106)
-# COLOR3 = (128, 114, 21)
-# COLOR4 = (85, 74, 0)
+BLACK = (0, 0, 0)
 FONT = (119, 110, 101)
 FONT2 = (249, 246, 242)
 BACK = (187, 173, 160)
+BACKFIN = (237, 223, 210)
 COLOR_DICT = {0 : (205, 193, 180), 2 : (238, 228, 218), 4 : (237, 224, 200), 8 : (242, 177, 121), 16 : (245, 149, 99), \
                    32 : (246, 124, 95), 64 : (246, 94, 59), 128 : (237, 207, 114), 256 : (237, 204, 97), 512 : (237, 200, 80), \
                    1024 : (236, 196, 64), 2048 : (236, 77, 88)}
-
 
 # Offsets for computing tile indices in each direction.
 OFFSETS = {UP: (1, 0),
@@ -94,6 +91,23 @@ def convert_back(game, direction, opposite, lenght, tiles):
                     same = False
                 board[row][col] = tiles[row][game.get_grid_width() - 1 - col]
     return board, same
+    
+def check_lose(game):
+    """
+    Checks if there are legal possibles movements left. 
+    If there are not, the player has lost the game.
+    """
+    test = game.clone()
+    lose = True
+    for direction in OFFSETS.keys():
+        test.move(direction)
+        if game.get_grid() != test.get_grid():
+            lose = False
+    return lose    
+    
+def test(game):
+    for direction in OFFSETS.keys():
+        game.move(direction)
 
 class TwentyFortyEight:
     """
@@ -199,73 +213,127 @@ class TwentyFortyEight:
         """
         return self._grid[row][col]
         
-class Graphics(pygame.sprite.Sprite):
+    def clone(self):
+        """
+        Returns a object clone of the current game
+        """
+        height = self.get_grid_height()
+        width = self.get_grid_width()
+        clone = TwentyFortyEight(height, width)
+        for col in range(height):
+            for row in range(width):
+                value = self.get_tile(row, col)
+                clone.set_tile(row, col, value)
+        return clone
+        
+class Graphics:
     """
-    Class to run the GUI for the game
+    Object for running the GUI for the game
     """
     
     def __init__(self, game):
-        pygame.sprite.Sprite.__init__(self)
         self._rows = game.get_grid_height()
         self._cols = game.get_grid_width()
-        # self._grid = game.get_grid()
-        self._screen = pygame.display.set_mode((BORDER + self._cols * (BORDER + TILE_SIZE), BORDER + self._rows * (BORDER + TILE_SIZE)))
+        self._dimensions = (BORDER + self._cols * (BORDER + TILE_SIZE), BORDER + self._rows * (BORDER + TILE_SIZE))
+        self._screen = pygame.display.set_mode(self._dimensions)
         self._screen.fill(BACK)
+        pygame.display.set_caption("2048 - Pygame")
+        pygame.display.flip()
+        
         self._font = pygame.font.SysFont("Arial", 50)
+        self._font_small = pygame.font.SysFont("Arial", 40)
+        self._font_winlose = pygame.font.SysFont("Arial", 80)
+        
         self._clock = pygame.time.Clock()
         self._game = game
-        pygame.display.set_caption("2048 - Pygame")
-        
+                
     def draw(self):
         """
         Draws the game into the canvas
         """
+        global win, lose
+        # Checks if there are legal movements left
+        if check_lose(game):
+            lose = True
+        
         for row in range(self._rows):
             for col in range(self._cols):
                 num = self._game.get_tile(row, col)
+                if num == 2048:
+                    win = True
+                    
                 color = COLOR_DICT[num]
                 tile = pygame.Surface((TILE_SIZE, TILE_SIZE))
                 tile.fill(color)
-                
                 top = BORDER + row * (TILE_SIZE + BORDER)
                 left = BORDER + col * (TILE_SIZE + BORDER)
                 self._screen.blit(tile, (top, left))
+                tile.convert()
                 
                 if num != 0:
+                    offset = 0
                     if num in [2, 4]:
                         label = self._font.render(str(num), True, FONT)
+                    elif num in [1024, 2048]:
+                        label = self._font_small.render(str(num), True, FONT2)
+                        offset = BORDER * 2 / 3
                     else:
                         label = self._font.render(str(num), True, FONT2)
                     label_size = self._font.size(str(num))
-                    offset = BORDER / 2 - 2
-                    self._screen.blit(label, (top + (TILE_SIZE - label_size[0]) / 2, left - offset + (TILE_SIZE - label_size[1]) / 2 + offset / 2))
-                
-                # label.set_colorkey(color)
-                # tile = pygame.Rect([BORDER_SIZE + row * TILE_SIZE, BORDER_SIZE     + col * TILE_SIZE], [TILE_SIZE, TILE_SIZE])
-                # num = self._game.get_tile(row, col)
-                # label = self._font.render(str(num), 1, BLACK)
-                # given_color = WHITE
-                # pygame.draw.rect(self._screen, given_color, tile)
-                # label.blit(tile, (HALF_TILE_SIZE, HALF_TILE_SIZE))
-                
+                    self._screen.blit(label, (top + (TILE_SIZE - label_size[0]) / 2+ offset, left + (TILE_SIZE - label_size[1]) / 2))
+                    label.convert()
+                    
+        if win or lose:
+            # tells the user if he/she won or lost
+            if win:
+                mes = "YOU WIN!"
+            elif lose:
+                mes = "YOU LOSE!"
+            message = self._font_winlose.render(mes, True, BLACK)
+            message_size = self._font_winlose.size(mes)
+            mark = ((self._dimensions[0] - message_size[0]) / 2, (self._dimensions[1] - message_size[1]) / 2)
+            self._screen.blit(message, mark)
+            
+            # prompts user for a new game
+            prompt = self._font_small.render("New Game? (Y/N)", True, BLACK)
+            prompt_size = self._font_small.size("New Game? (Y/N)")
+            self._screen.blit(prompt, (mark[0] + (message_size[0] - prompt_size[0]) / 2, mark[1] + message_size[1] + BORDER))
+         
+    # def erase(self):
+        # self._screen.fill(BACK)
+        # black = pygame.Surface(self._screen.get_size())
+        # black = black.convert()
+        # black.fill(BLACK)
+        # self._screen.blit(black, (0, 0))
+    
+    def animate(self):
+        """
+        Provides the animation of the sliding tiles
+        """
+        pass
+    
     def tick(self):
         self._clock.tick(60)
         
-
-# initializes pygame and create a frame
+# initializes pygame
 pygame.init()
 
 game = TwentyFortyEight(4, 4)
 run = Graphics(game)
-
-#pygame.time.set_timer(USEREVENT+1, 500)
+pygame.time.set_timer(USEREVENT+1, 50)
 
 # main loop with the game's logic
 done = False
-#right = True
-#init = False
+win = False
+lose = False
+animate = False
 while not done:
     run.tick()
+    
+    # Comment out to play the game!!!!
+    # test(game)
+    #game.set_tile(0, 0, 2048)
+    #game.set_tile(1, 1, 1024)
     
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -280,29 +348,19 @@ while not done:
                 game.move(UP)
             elif event.key == pygame.K_RIGHT:
                 game.move(DOWN)
-                    
-        # elif event.type == pygame.KEYUP:
-            # if event.key == pygame.K_d:
-                # continue
-            # elif event.key == pygame.K_a:
-                # continue
+            elif (win or lose) and event.key == pygame.K_y: # Restarting the game does not restart the drawing
+                win, lose = False, False
+                game.reset()
+                run = Graphics(game)
+            elif (win or lose) and event.key == pygame.K_n:
+                done = True
                 
-        # elif event.type == USEREVENT+1:
-            # if init and right:
-                # zombie.image = pygame.transform.flip(idle[0], True, False)
-                # init = False
-            # elif init and not right:
-                # zombie.image = idle[0]
-                # init = False
-            # elif not init and right:
-                # zombie.image = pygame.transform.flip(idle[1], True, False)
-                # init = True
-            # elif not init and not right:
-                # zombie.image = idle[1]
-                # init = True
+        elif event.type == USEREVENT+1 and animate:
+            run.animate()
             
     run.draw()
+    # run.erase()
         
-    pygame.display.flip()
-    
+    pygame.display.flip()   
+
 pygame.quit()
